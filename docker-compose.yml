@@ -1,0 +1,55 @@
+services:
+  haproxy:
+    image: haproxy
+    container_name: haproxy
+    restart: unless-stopped
+    ports:
+      - "8042:8042"
+      - "4242:4242"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - orthanc1
+      - orthanc2
+  orthanc1:
+    image: osimis/orthanc
+    container_name: orthanc1
+    restart: unless-stopped
+    ports:
+      - "8043:8042"
+      - "4243:4242"
+    volumes:
+      - ./orthanc/config:/etc/orthanc
+      - ./.data/orthanc:/var/lib/orthanc/db
+    environment:
+      VERBOSE_ENABLED: true
+    depends_on:
+      - postgres
+    healthcheck:
+      test: "/probes/test-aliveness.py --user orthanc --pwd orthanc"
+  orthanc2:
+    image: osimis/orthanc
+    container_name: orthanc2
+    restart: unless-stopped
+    ports:
+      - "8044:8042"
+      - "4244:4242"
+    volumes:
+      - ./orthanc/config:/etc/orthanc
+      - ./.data/orthanc:/var/lib/orthanc/db
+    environment:
+      VERBOSE_ENABLED: true
+    depends_on:
+      - postgres
+    healthcheck:
+      test: "/probes/test-aliveness.py --user orthanc --pwd orthanc"
+  postgres:
+    image: postgres
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: "postgres"

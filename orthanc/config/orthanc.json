@@ -1,0 +1,17 @@
+{
+    "Name": "Orthanc",
+    "HttpPort": 8042,
+    "DicomAet": "ORTHANC",
+    "DicomPort": 4242,
+    "RegisteredUsers": {
+        "orthanc": "orthanc"
+    },
+    "PostgreSQL": {
+        "EnabledIndex": true,
+        "EnabledStorage": false,
+        "ConnectionUri" : "postgresql://postgres:postgres@postgres:5432/postgres?sslmode=prefer",
+        "MaximumConnectionRetries": 20,
+        "ConnectionRetryInterval": 5,
+        "IndexConnectionsCount": 10
+    }
+}
