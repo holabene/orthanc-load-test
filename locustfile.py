@@ -60,3 +60,14 @@ class DownloadTest(HttpUser):
 
         for patient_id in patient_ids.json():
             self.client.get(f"/patients/{patient_id}/archive")
+
+
+class AnonymizeTest(HttpUser):
+    wait_time = between(1, 5)
+
+    @task
+    def anonymize_studies(self):
+        study_ids = self.client.get("/studies")
+
+        for study_id in study_ids.json():
+            self.client.post(f"/studies/{study_id}/anonymize", json={})
