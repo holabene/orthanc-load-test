@@ -21,3 +21,42 @@ class ApiReadTest(HttpUser):
 
                 for instance_id in series.json()["Instances"]:
                     self.client.get(f"/instances/{instance_id}")
+
+
+class DownloadTest(HttpUser):
+    wait_time = between(1, 5)
+
+    @task
+    def preview_image(self):
+        instance_ids = self.client.get("/instances")
+
+        for instance_id in instance_ids.json():
+            self.client.get(f"/instances/{instance_id}/preview")
+
+    @task
+    def download_image(self):
+        instance_ids = self.client.get("/instances")
+
+        for instance_id in instance_ids.json():
+            self.client.get(f"/instances/{instance_id}/file")
+
+    @task
+    def download_series(self):
+        series_ids = self.client.get("/series")
+
+        for series_id in series_ids.json():
+            self.client.get(f"/series/{series_id}/archive")
+
+    @task
+    def download_study(self):
+        study_ids = self.client.get("/studies")
+
+        for study_id in study_ids.json():
+            self.client.get(f"/studies/{study_id}/archive")
+
+    @task
+    def download_patient(self):
+        patient_ids = self.client.get("/patients")
+
+        for patient_id in patient_ids.json():
+            self.client.get(f"/patients/{patient_id}/archive")
