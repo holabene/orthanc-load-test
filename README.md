@@ -1,4 +1,4 @@
-Orthand Load Test
+Orthanc Load Test
 =================
 
 This is a load test for Orthanc DICOM server. It is based on [Locust](http://locust.io/).
