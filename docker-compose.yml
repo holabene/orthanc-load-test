@@ -9,31 +9,13 @@ services:
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
     depends_on:
-      - orthanc1
-      - orthanc2
-  orthanc1:
+      - orthanc
+  orthanc:
     image: osimis/orthanc
-    container_name: orthanc1
     restart: unless-stopped
-    ports:
-      - "8043:8042"
-      - "4243:4242"
-    volumes:
-      - ./orthanc/config:/etc/orthanc
-      - ./.data/orthanc:/var/lib/orthanc/db
-    environment:
-      VERBOSE_ENABLED: true
-    depends_on:
-      - postgres
-    healthcheck:
-      test: "/probes/test-aliveness.py --user orthanc --pwd orthanc"
-  orthanc2:
-    image: osimis/orthanc
-    container_name: orthanc2
-    restart: unless-stopped
-    ports:
-      - "8044:8042"
-      - "4244:4242"
+    deploy:
+      mode: replicated
+      replicas: 3
     volumes:
       - ./orthanc/config:/etc/orthanc
       - ./.data/orthanc:/var/lib/orthanc/db
