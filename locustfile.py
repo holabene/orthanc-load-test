@@ -100,6 +100,56 @@ class AnonymizeTest(HttpUser):
         logger.info(f"Anonymization job {job['ID']} started for study {study_id}")
 
 
+class SlowEndpointsTest(HttpUser):
+    """
+    Test slow endpoints, which requires file reading on the server side
+    """
+    wait_time = between(10, 12)
+
+    @task
+    def simplified_tags(self):
+        study_ids = self.client.get("/studies").json()
+        # pick a random study_id from the list
+        study_id = random.choice(study_ids)
+        # get instances from the study
+        instances = self.client.get(f"/studies/{study_id}/instances", name="/studies/{study_id}/instances").json()
+        # map the instances to a list of instance ids
+        instance_ids = list(map(lambda instance: instance["ID"], instances))
+        # pick a random instance_id from the list
+        instance_id = random.choice(instance_ids)
+        self.client.get(f"/instances/{instance_id}/simplified-tags", name="/instances/{instance_id}/simplified-tags")
+        logger.info(f"Retrieved simplified tags for instance {instance_id}")
+
+    @task
+    def shared_tags(self):
+        study_ids = self.client.get("/studies").json()
+        # pick a random study_id from the list
+        study_id = random.choice(study_ids)
+        self.client.get(f"/studies/{study_id}/shared-tags", name="/studies/{study_id}/shared-tags")
+        logger.info(f"Retrieved shared tags for study {study_id}")
+
+    @task
+    def tools_find(self):
+        study_ids = self.client.get("/studies").json()
+        # pick a random study_id from the list
+        study_id = random.choice(study_ids)
+
+        # get data from the study
+        study = self.client.get(f"/studies/{study_id}", name="/studies/{study_id}").json()
+        study_instance_uid = study["MainDicomTags"]["StudyInstanceUID"]
+        study_date = study["MainDicomTags"]["StudyDate"]
+        patient_id = study["PatientMainDicomTags"]["PatientID"]
+
+        # search for the study
+        self.client.post("/tools/find", json={"Level": "Study", "Expand": True, "Query": {
+            "StudyInstanceUID": study_instance_uid,
+            "StudyDate": study_date,
+            "PatientID": patient_id
+        }}, name="/tools/find")
+
+        logger.info(f"Searched for study {study_instance_uid}, study date {study_date}, patient ID {patient_id}")
+
+
 @events.test_start.add_listener
 def on_test_start(**kwargs):
     # print current time in UTC
