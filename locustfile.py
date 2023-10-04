@@ -5,6 +5,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
 class ApiReadTest(HttpUser):
     wait_time = between(5, 8)
 
@@ -85,13 +86,16 @@ class AnonymizeTest(HttpUser):
         study_ids = self.client.get("/studies").json()
         # pick a random study id from the list
         study_id = random.choice(study_ids)
-        job = self.client.post(f"/studies/{study_id}/anonymize", json={ "Asynchronous": True }, name="/studies/{study_id}/anonymize").json()
+        job = self.client.post(f"/studies/{study_id}/anonymize", json={"Asynchronous": True},
+                               name="/studies/{study_id}/anonymize").json()
         logger.info(f"Anonymization job {job['ID']} started for study {study_id}")
+
 
 @events.test_start.add_listener
 def on_test_start(**kwargs):
     # print current time in UTC
     logger.info(f"Test started at {datetime.utcnow()}")
+
 
 @events.test_stop.add_listener
 def on_test_stop(**kwargs):
