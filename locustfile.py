@@ -6,7 +6,10 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
-class ApiReadTest(HttpUser):
+class ReadTest(HttpUser):
+    """
+    Test reading data from Orthanc
+    """
     wait_time = between(5, 8)
 
     @task
@@ -35,6 +38,9 @@ class ApiReadTest(HttpUser):
 
 
 class DownloadTest(HttpUser):
+    """
+    Test downloading data from Orthanc
+    """
     wait_time = between(5, 8)
 
     @task
@@ -79,6 +85,9 @@ class DownloadTest(HttpUser):
 
 
 class AnonymizeTest(HttpUser):
+    """
+    Test running anonymization jobs in async mode
+    """
     wait_time = between(10, 12)
 
     @task
