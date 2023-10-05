@@ -100,7 +100,7 @@ class AnonymizeTest(HttpUser):
         logger.info(f"Anonymization job {job['ID']} started for study {study_id}")
 
 
-class SlowEndpointsTest(HttpUser):
+class SlowEndpointTest(HttpUser):
     """
     Test slow endpoints, which requires file reading on the server side
     """
@@ -137,8 +137,8 @@ class SlowEndpointsTest(HttpUser):
         # get data from the study
         study = self.client.get(f"/studies/{study_id}", name="/studies/{study_id}").json()
         study_instance_uid = study["MainDicomTags"]["StudyInstanceUID"]
-        study_date = study["MainDicomTags"]["StudyDate"]
-        patient_id = study["PatientMainDicomTags"]["PatientID"]
+        study_date = study["MainDicomTags"]["StudyDate"] if "StudyDate" in study["MainDicomTags"] else None
+        patient_id = study["PatientMainDicomTags"]["PatientID"] if "PatientID" in study["PatientMainDicomTags"] else None
 
         # search for the study
         self.client.post("/tools/find", json={"Level": "Study", "Expand": True, "Query": {
