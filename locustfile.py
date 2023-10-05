@@ -100,7 +100,7 @@ class AnonymizeTest(HttpUser):
         logger.info(f"Anonymization job {job['ID']} started for study {study_id}")
 
 
-class SlowEndpointsTest(HttpUser):
+class SlowEndpointTest(HttpUser):
     """
     Test slow endpoints, which requires file reading on the server side
     """
