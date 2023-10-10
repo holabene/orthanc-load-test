@@ -150,6 +150,33 @@ class SlowEndpointTest(HttpUser):
         logger.info(f"Searched for study {study_instance_uid}, study date {study_date}, patient ID {patient_id}")
 
 
+class WriteTest(HttpUser):
+    """
+    Test writing data to Orthanc
+    """
+    wait_time = between(10, 12)
+
+    @task
+    def upload_file(self):
+        pass
+
+    @task
+    def delete_instance(self):
+        pass
+
+    @task
+    def delete_series(self):
+        pass
+
+    @task
+    def delete_study(self):
+        pass
+
+    @task
+    def delete_patient(self):
+        pass
+
+
 @events.test_start.add_listener
 def on_test_start(**kwargs):
     # print current time in UTC
