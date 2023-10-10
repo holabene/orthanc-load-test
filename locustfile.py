@@ -1,6 +1,10 @@
 from locust import HttpUser, task, between, events
+import tempfile
 import random
 import logging
+import os
+from pydicom.dataset import FileDataset, FileMetaDataset
+from pydicom.uid import UID
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -156,6 +160,30 @@ class WriteTest(HttpUser):
     """
     wait_time = between(10, 12)
 
+    def create_dicom_file(self):
+        """
+        Create a DICOM file
+        Adapted from https://pydicom.github.io/pydicom/stable/auto_examples/input_output/plot_write_dicom.html#sphx-glr-auto-examples-input-output-plot-write-dicom-py
+        :return: DICOM file path
+        """
+        filename = tempfile.NamedTemporaryFile(suffix=".dcm", dir=".data/temp").name
+
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = UID('1.2.840.10008.5.1.4.1.1.2')
+        file_meta.MediaStorageSOPInstanceUID = UID('1.2.3')
+        file_meta.ImplementationClassUID = UID('1.2.3.4')
+
+        ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
+        ds.PatientName = "Test^Patient"
+        ds.PatientID = datetime.now().strftime('%Y%m%d%H%M%S.%f')
+        ds.is_little_endian = True
+        ds.is_implicit_VR = True
+        ds.ContentDate = datetime.now().strftime('%Y%m%d')
+        ds.ContentTime = datetime.now().strftime('%H%M%S.%f')
+        ds.save_as(filename)
+
+        return filename
+
     @task
     def upload_file(self):
         pass
@@ -182,8 +210,22 @@ def on_test_start(**kwargs):
     # print current time in UTC
     logger.info(f"Test started at {datetime.utcnow()}")
 
+    # create temp folder if not exists
+    if not os.path.exists(".data/temp"):
+        os.makedirs(".data/temp")
+
+    # clean up temp files
+    for root, dirs, files in os.walk(".data/temp"):
+        for file in files:
+            os.remove(os.path.join(root, file))
+
 
 @events.test_stop.add_listener
 def on_test_stop(**kwargs):
     # print current time in UTC
     logger.info(f"Test stopped at {datetime.utcnow()}")
+
+    # clean up temp files
+    for root, dirs, files in os.walk(".data/temp"):
+        for file in files:
+            os.remove(os.path.join(root, file))
