@@ -143,7 +143,8 @@ class SlowEndpointTest(HttpUser):
         study = self.client.get(f"/studies/{study_id}", name="/studies/{study_id}").json()
         study_instance_uid = study["MainDicomTags"]["StudyInstanceUID"]
         study_date = study["MainDicomTags"]["StudyDate"] if "StudyDate" in study["MainDicomTags"] else None
-        patient_id = study["PatientMainDicomTags"]["PatientID"] if "PatientID" in study["PatientMainDicomTags"] else None
+        patient_id = study["PatientMainDicomTags"]["PatientID"] \
+            if "PatientID" in study["PatientMainDicomTags"] else None
 
         # search for the study
         self.client.post("/tools/find", json={"Level": "Study", "Expand": True, "Query": {
@@ -193,7 +194,7 @@ class WriteTest(HttpUser):
             filename = self.create_dicom_file()
 
             with open(filename, "rb") as file:
-                instance = self.client.post("/instances", data=file, headers= {
+                upload = self.client.post("/instances", data=file, headers={
                     "Content-Type": "application/dicom"
                 }, name="/instances").json()
 
@@ -201,80 +202,80 @@ class WriteTest(HttpUser):
             os.remove(filename)
 
             # break if status is Success
-            if instance["Status"] == "Success":
-                logger.info(f"Uploaded file {filename} as instance ID {instance['ID']}, "
-                            f"ParentSeries {instance['ParentSeries']}, "
-                            f"ParentStudy {instance['ParentStudy']}, "
-                            f"ParentPatient {instance['ParentPatient']}")
+            if upload["Status"] == "Success":
+                logger.info(f"Uploaded file {filename} as instance ID {upload['ID']}, "
+                            f"ParentSeries {upload['ParentSeries']}, "
+                            f"ParentStudy {upload['ParentStudy']}, "
+                            f"ParentPatient {upload['ParentPatient']}")
 
                 break
 
-        return instance
+        return upload
 
     @task
     def upload_and_delete_instance(self):
-        instance = self.upload_file()
+        upload = self.upload_file()
 
         # delete the instance
-        self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
-        logger.info(f"Deleted instance {instance['ID']}")
+        self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
+        logger.info(f"Deleted instance {upload['ID']}")
 
     @task
     def upload_and_delete_series(self):
-        instance = self.upload_file()
+        upload = self.upload_file()
 
         # count the number of instances in the series
-        instances = self.client.get(f"/series/{instance['ParentSeries']}/instances",
+        instances = self.client.get(f"/series/{upload['ParentSeries']}/instances",
                                     name="/series/{series_id}/instances").json()
 
-        logger.info(f"Found {len(instances)} instance(s) in series {instance['ParentSeries']}")
+        logger.info(f"Found {len(instances)} instance(s) in series {upload['ParentSeries']}")
 
         if len(instances) == 1:
             # delete the series
-            self.client.delete(f"/series/{instance['ParentSeries']}", name="/series/{series_id}")
-            logger.info(f"Deleted series {instance['ParentSeries']}")
+            self.client.delete(f"/series/{upload['ParentSeries']}", name="/series/{series_id}")
+            logger.info(f"Deleted series {upload['ParentSeries']}")
         else:
             # delete the instance
-            self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
-            logger.info(f"Deleted instance {instance['ID']}")
+            self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
+            logger.info(f"Deleted instance {upload['ID']}")
 
     @task
     def upload_and_delete_study(self):
-        instance = self.upload_file()
+        upload = self.upload_file()
 
         # count the number of instances in the study
-        instances = self.client.get(f"/studies/{instance['ParentStudy']}/instances",
+        instances = self.client.get(f"/studies/{upload['ParentStudy']}/instances",
                                     name="/studies/{study_id}/instances").json()
 
-        logger.info(f"Found {len(instances)} instance(s) in study {instance['ParentStudy']}")
+        logger.info(f"Found {len(instances)} instance(s) in study {upload['ParentStudy']}")
 
         if len(instances) == 1:
             # delete the study
-            self.client.delete(f"/studies/{instance['ParentStudy']}", name="/studies/{study_id}")
-            logger.info(f"Deleted study {instance['ParentStudy']}")
+            self.client.delete(f"/studies/{upload['ParentStudy']}", name="/studies/{study_id}")
+            logger.info(f"Deleted study {upload['ParentStudy']}")
         else:
             # delete the instance
-            self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
-            logger.info(f"Deleted instance {instance['ID']}")
+            self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
+            logger.info(f"Deleted instance {upload['ID']}")
 
     @task
     def upload_and_delete_patient(self):
-        instance = self.upload_file()
+        upload = self.upload_file()
 
         # count the number of instances in the patient
-        instances = self.client.get(f"/patients/{instance['ParentPatient']}/instances",
+        instances = self.client.get(f"/patients/{upload['ParentPatient']}/instances",
                                     name="/patients/{patient_id}/instances").json()
 
-        logger.info(f"Found {len(instances)} instance(s) in patient {instance['ParentPatient']}")
+        logger.info(f"Found {len(instances)} instance(s) in patient {upload['ParentPatient']}")
 
         if len(instances) == 1:
             # delete the patient
-            self.client.delete(f"/patients/{instance['ParentPatient']}", name="/patients/{patient_id}")
-            logger.info(f"Deleted patient {instance['ParentPatient']}")
+            self.client.delete(f"/patients/{upload['ParentPatient']}", name="/patients/{patient_id}")
+            logger.info(f"Deleted patient {upload['ParentPatient']}")
         else:
             # delete the instance
-            self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
-            logger.info(f"Deleted instance {instance['ID']}")
+            self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
+            logger.info(f"Deleted instance {upload['ID']}")
 
 
 @events.test_start.add_listener
