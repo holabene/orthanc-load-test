@@ -1,10 +1,11 @@
-from locust import HttpUser, task, between, events
 import tempfile
 import random
 import logging
 import os
+
+from locust import HttpUser, task, between, events
 from pydicom.dataset import FileDataset, FileMetaDataset
-from pydicom.uid import UID
+from pydicom.uid import UID, generate_uid
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -170,39 +171,73 @@ class WriteTest(HttpUser):
 
         file_meta = FileMetaDataset()
         file_meta.MediaStorageSOPClassUID = UID('1.2.840.10008.5.1.4.1.1.2')
-        file_meta.MediaStorageSOPInstanceUID = UID('1.2.3')
-        file_meta.ImplementationClassUID = UID('1.2.3.4')
 
         ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
         ds.PatientName = "Test^Patient"
-        ds.PatientID = datetime.now().strftime('%Y%m%d%H%M%S.%f')
+        ds.PatientID = datetime.now().strftime('OrthancLoadTest-%Y%m%d-%H%M%S-%f')
+        ds.StudyInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        ds.SOPInstanceUID = generate_uid()
+        ds.Modality = "CT"
         ds.is_little_endian = True
         ds.is_implicit_VR = True
         ds.ContentDate = datetime.now().strftime('%Y%m%d')
-        ds.ContentTime = datetime.now().strftime('%H%M%S.%f')
+        ds.ContentTime = datetime.now().strftime('%H%M%S')
+
         ds.save_as(filename)
 
         return filename
 
-    @task
     def upload_file(self):
-        pass
+        filename = self.create_dicom_file()
+
+        with open(filename, "rb") as file:
+            instance = self.client.post("/instances", data=file, headers= {
+                "Content-Type": "application/dicom"
+            }, name="/instances").json()
+
+        logger.info(f"Uploaded file {filename} as instance ID {instance['ID']}, "
+                    f"ParentSeries {instance['ParentSeries']}, "
+                    f"ParentStudy {instance['ParentStudy']}, "
+                    f"ParentPatient {instance['ParentPatient']}, "
+                    f"with status {instance['Status']}")
+
+        # delete the file
+        os.remove(filename)
+
+        return instance
 
     @task
-    def delete_instance(self):
-        pass
+    def upload_and_delete_instance(self):
+        instance = self.upload_file()
+
+        # delete the instance
+        self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
+        logger.info(f"Deleted instance {instance['ID']}")
 
     @task
-    def delete_series(self):
-        pass
+    def upload_and_delete_series(self):
+        instance = self.upload_file()
+
+        # delete the series
+        self.client.delete(f"/series/{instance['ParentSeries']}", name="/series/{series_id}")
+        logger.info(f"Deleted series {instance['ParentSeries']}")
 
     @task
-    def delete_study(self):
-        pass
+    def upload_and_delete_study(self):
+        instance = self.upload_file()
+
+        # delete the study
+        self.client.delete(f"/studies/{instance['ParentStudy']}", name="/studies/{study_id}")
+        logger.info(f"Deleted study {instance['ParentStudy']}")
 
     @task
-    def delete_patient(self):
-        pass
+    def upload_and_delete_patient(self):
+        instance = self.upload_file()
+
+        # delete the patient
+        self.client.delete(f"/patients/{instance['ParentPatient']}", name="/patients/{patient_id}")
+        logger.info(f"Deleted patient {instance['ParentPatient']}")
 
 
 @events.test_start.add_listener
