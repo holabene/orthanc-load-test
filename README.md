@@ -6,8 +6,8 @@ This is a load test for Orthanc DICOM server. It is based on [Locust](http://loc
 ## Installation
 
 ```bash
-$ brew install python3
-$ brew install locust
+$ brew install poetry # or pip install poetry
+$ poetry install
 ```
 
 Refer to [Locust Documentation](http://docs.locust.io/en/latest/installation.html) for more details.
@@ -18,10 +18,23 @@ Refer to [Locust Documentation](http://docs.locust.io/en/latest/installation.htm
 $ # bring up the local services in docker-compose.yml
 $ docker compose up -d
 $ # run the load test
-$ locust -f locustfile.py --host=http://orthanc:orthanc@localhost:8042
+$ poetry run locust --host=http://orthanc:orthanc@localhost:8042
 ```
 
 Then open http://localhost:8089/ in your browser and start a test.
+
+To run headless, in this case, the test will run for 1 minute with 100 users and 10 users spawned per second:
+
+```bash
+$ poetry run locust --host=http://orthanc:orthanc@localhost:8042 --headless -u 100 -r 10 -t 1m
+```
+
+There is `locust-plugins` package available, which provides some useful features, such as limit iterations to run 1 task once:
+
+```bash
+$ poetry run locust --host=http://orthanc:orthanc@localhost:8042 --headless -u 1 -i 1
+```
+
 
 ## Screenshots
 
