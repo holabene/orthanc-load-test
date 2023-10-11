@@ -189,21 +189,25 @@ class WriteTest(HttpUser):
         return filename
 
     def upload_file(self):
-        filename = self.create_dicom_file()
+        while True:
+            filename = self.create_dicom_file()
 
-        with open(filename, "rb") as file:
-            instance = self.client.post("/instances", data=file, headers= {
-                "Content-Type": "application/dicom"
-            }, name="/instances").json()
+            with open(filename, "rb") as file:
+                instance = self.client.post("/instances", data=file, headers= {
+                    "Content-Type": "application/dicom"
+                }, name="/instances").json()
 
-        logger.info(f"Uploaded file {filename} as instance ID {instance['ID']}, "
-                    f"ParentSeries {instance['ParentSeries']}, "
-                    f"ParentStudy {instance['ParentStudy']}, "
-                    f"ParentPatient {instance['ParentPatient']}, "
-                    f"with status {instance['Status']}")
+            # delete the file
+            os.remove(filename)
 
-        # delete the file
-        os.remove(filename)
+            # break if status is Success
+            if instance["Status"] == "Success":
+                logger.info(f"Uploaded file {filename} as instance ID {instance['ID']}, "
+                            f"ParentSeries {instance['ParentSeries']}, "
+                            f"ParentStudy {instance['ParentStudy']}, "
+                            f"ParentPatient {instance['ParentPatient']}")
+
+                break
 
         return instance
 
