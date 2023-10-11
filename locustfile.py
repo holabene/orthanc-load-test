@@ -219,25 +219,58 @@ class WriteTest(HttpUser):
     def upload_and_delete_series(self):
         instance = self.upload_file()
 
-        # delete the series
-        self.client.delete(f"/series/{instance['ParentSeries']}", name="/series/{series_id}")
-        logger.info(f"Deleted series {instance['ParentSeries']}")
+        # count the number of instances in the series
+        instances = self.client.get(f"/series/{instance['ParentSeries']}/instances",
+                                    name="/series/{series_id}/instances").json()
+
+        logger.info(f"Found {len(instances)} instance(s) in series {instance['ParentSeries']}")
+
+        if len(instances) == 1:
+            # delete the series
+            self.client.delete(f"/series/{instance['ParentSeries']}", name="/series/{series_id}")
+            logger.info(f"Deleted series {instance['ParentSeries']}")
+        else:
+            # delete the instance
+            self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
+            logger.info(f"Deleted instance {instance['ID']}")
 
     @task
     def upload_and_delete_study(self):
         instance = self.upload_file()
 
-        # delete the study
-        self.client.delete(f"/studies/{instance['ParentStudy']}", name="/studies/{study_id}")
-        logger.info(f"Deleted study {instance['ParentStudy']}")
+        # count the number of instances in the study
+        instances = self.client.get(f"/studies/{instance['ParentStudy']}/instances",
+                                    name="/studies/{study_id}/instances").json()
+
+        logger.info(f"Found {len(instances)} instance(s) in study {instance['ParentStudy']}")
+
+        if len(instances) == 1:
+            # delete the study
+            self.client.delete(f"/studies/{instance['ParentStudy']}", name="/studies/{study_id}")
+            logger.info(f"Deleted study {instance['ParentStudy']}")
+        else:
+            # delete the instance
+            self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
+            logger.info(f"Deleted instance {instance['ID']}")
 
     @task
     def upload_and_delete_patient(self):
         instance = self.upload_file()
 
-        # delete the patient
-        self.client.delete(f"/patients/{instance['ParentPatient']}", name="/patients/{patient_id}")
-        logger.info(f"Deleted patient {instance['ParentPatient']}")
+        # count the number of instances in the patient
+        instances = self.client.get(f"/patients/{instance['ParentPatient']}/instances",
+                                    name="/patients/{patient_id}/instances").json()
+
+        logger.info(f"Found {len(instances)} instance(s) in patient {instance['ParentPatient']}")
+
+        if len(instances) == 1:
+            # delete the patient
+            self.client.delete(f"/patients/{instance['ParentPatient']}", name="/patients/{patient_id}")
+            logger.info(f"Deleted patient {instance['ParentPatient']}")
+        else:
+            # delete the instance
+            self.client.delete(f"/instances/{instance['ID']}", name="/instances/{instance_id}")
+            logger.info(f"Deleted instance {instance['ID']}")
 
 
 @events.test_start.add_listener
