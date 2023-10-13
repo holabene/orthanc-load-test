@@ -8,10 +8,11 @@ readme = "README.md"
 packages = [{include = "orthanc_load_test"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = ">=3.9,<3.13"
 pydicom = "^2.4.3"
 locust = "^2.17.0"
 locust-plugins = "^4.0.0"
+numpy = "^1.26.0"
 
 
 [build-system]

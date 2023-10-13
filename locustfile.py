@@ -2,6 +2,7 @@ import tempfile
 import random
 import logging
 import os
+import numpy as np
 
 from locust import HttpUser, task, between, events
 from pydicom.dataset import FileDataset, FileMetaDataset
@@ -171,7 +172,9 @@ class WriteTest(HttpUser):
         filename = tempfile.NamedTemporaryFile(suffix=".dcm", dir=".data/temp").name
 
         file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = UID('1.2.840.10008.5.1.4.1.1.2')
+        file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.7")  # Secondary Capture Image Storage
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.5.5'
 
         ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
         ds.PatientName = "Test^Patient"
@@ -179,11 +182,25 @@ class WriteTest(HttpUser):
         ds.StudyInstanceUID = generate_uid()
         ds.SeriesInstanceUID = generate_uid()
         ds.SOPInstanceUID = generate_uid()
-        ds.Modality = "CT"
-        ds.is_little_endian = True
-        ds.is_implicit_VR = True
+        ds.Modality = "OT"
         ds.ContentDate = datetime.now().strftime('%Y%m%d')
         ds.ContentTime = datetime.now().strftime('%H%M%S')
+
+        # create a blank 512x512 black image
+        width = 512
+        height = 512
+        black_image = np.zeros((width, height), dtype=np.uint16)
+
+        ds.PixelSpacing = [1, 1]
+        ds.Rows = width
+        ds.Columns = height
+        ds.BitsStored = 16
+        ds.BitsAllocated = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0  # Unsigned integer
+
+        # Set pixel data
+        ds.PixelData = black_image.tobytes()
 
         ds.save_as(filename)
 
