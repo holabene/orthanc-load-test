@@ -3,6 +3,7 @@ import random
 import logging
 import os
 import numpy as np
+import uuid
 
 from locust import HttpUser, task, between, events
 from pydicom.dataset import FileDataset, FileMetaDataset
@@ -157,81 +158,130 @@ class SlowEndpointTest(HttpUser):
         logger.info(f"Searched for study {study_instance_uid}, study date {study_date}, patient ID {patient_id}")
 
 
+def create_dicom_instance(patient_id, study_instance_uid=None, series_instance_uid=None):
+    """
+    Create a DICOM file
+    :return: DICOM file path
+    """
+    filename = tempfile.NamedTemporaryFile(suffix=".dcm", dir=".data/temp").name
+
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.7")  # Secondary Capture Image Storage
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.5.5'
+
+    ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
+    ds.PatientName = "Test^Patient"
+    ds.PatientID = patient_id
+    ds.StudyInstanceUID = generate_uid() if study_instance_uid is None else study_instance_uid
+    ds.SeriesInstanceUID = generate_uid() if series_instance_uid is None else series_instance_uid
+    ds.SOPInstanceUID = generate_uid()
+    ds.Modality = "OT"
+    ds.ContentDate = datetime.now().strftime('%Y%m%d')
+    ds.ContentTime = datetime.now().strftime('%H%M%S')
+
+    # create a blank 512x512 black image
+    width = 512
+    height = 512
+    black_image = np.zeros((width, height), dtype=np.uint16)
+
+    ds.PixelSpacing = [1, 1]
+    ds.Rows = width
+    ds.Columns = height
+    ds.BitsStored = 16
+    ds.BitsAllocated = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0  # unsigned integer
+
+    # set pixel data
+    ds.PixelData = black_image.tobytes()
+
+    # save the file
+    ds.save_as(filename)
+
+    return filename
+
+
+def create_dicom_series(patient_id, study_instance_uid=None):
+    """
+    Create a DICOM series
+    :return: DICOM file path
+    """
+    # create a study if study_instance_uid is not provided
+    study_instance_uid = generate_uid() if study_instance_uid is None else study_instance_uid
+
+    # create series uid
+    series_instance_uid = generate_uid()
+
+    # create a DICOM series of 100 instances
+    filenames = []
+
+    for i in range(100):
+        filenames.append(create_dicom_instance(patient_id, study_instance_uid, series_instance_uid))
+
+    return filenames
+
+
+def create_dicom_study(patient_id):
+    """
+    Create a DICOM study
+    :return: DICOM file path
+    """
+    # create a study
+    study_instance_uid = generate_uid()
+
+    # create a DICOM study of 2 series
+    filenames = []
+
+    for i in range(2):
+        filenames.extend(create_dicom_series(patient_id, study_instance_uid))
+
+    return filenames
+
+
+def create_dicom_patient(patient_id):
+    """
+    Create a DICOM patient
+    :return: DICOM file path
+    """
+    # create a DICOM patient of 2 studies
+    filenames = []
+
+    for i in range(2):
+        filenames.extend(create_dicom_study(patient_id))
+
+    return filenames
+
+
 class WriteTest(HttpUser):
     """
     Test writing data to Orthanc
     """
     wait_time = between(10, 12)
 
-    def create_dicom_file(self):
-        """
-        Create a DICOM file
-        Adapted from https://pydicom.github.io/pydicom/stable/auto_examples/input_output/plot_write_dicom.html#sphx-glr-auto-examples-input-output-plot-write-dicom-py
-        :return: DICOM file path
-        """
-        filename = tempfile.NamedTemporaryFile(suffix=".dcm", dir=".data/temp").name
+    def upload_file(self, filename):
+        with open(filename, "rb") as file:
+            upload = self.client.post("/instances", data=file, headers={
+                "Content-Type": "application/dicom"
+            }, name="/instances").json()
 
-        file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.7")  # Secondary Capture Image Storage
-        file_meta.MediaStorageSOPInstanceUID = generate_uid()
-        file_meta.ImplementationClassUID = '1.3.6.1.4.1.9590.100.1.0.100.5.5'
+        # delete the file
+        os.remove(filename)
 
-        ds = FileDataset(filename, {}, file_meta=file_meta, preamble=b"\0" * 128)
-        ds.PatientName = "Test^Patient"
-        ds.PatientID = datetime.now().strftime('OrthancLoadTest-%Y%m%d-%H%M%S-%f')
-        ds.StudyInstanceUID = generate_uid()
-        ds.SeriesInstanceUID = generate_uid()
-        ds.SOPInstanceUID = generate_uid()
-        ds.Modality = "OT"
-        ds.ContentDate = datetime.now().strftime('%Y%m%d')
-        ds.ContentTime = datetime.now().strftime('%H%M%S')
+        logger.info(f"Uploaded file {filename} as instance ID {upload['ID']}, "
+                    f"ParentSeries {upload['ParentSeries']}, "
+                    f"ParentStudy {upload['ParentStudy']}, "
+                    f"ParentPatient {upload['ParentPatient']}")
 
-        # create a blank 512x512 black image
-        width = 512
-        height = 512
-        black_image = np.zeros((width, height), dtype=np.uint16)
-
-        ds.PixelSpacing = [1, 1]
-        ds.Rows = width
-        ds.Columns = height
-        ds.BitsStored = 16
-        ds.BitsAllocated = 16
-        ds.HighBit = 15
-        ds.PixelRepresentation = 0  # Unsigned integer
-
-        # Set pixel data
-        ds.PixelData = black_image.tobytes()
-
-        ds.save_as(filename)
-
-        return filename
-
-    def upload_file(self):
-        while True:
-            filename = self.create_dicom_file()
-
-            with open(filename, "rb") as file:
-                upload = self.client.post("/instances", data=file, headers={
-                    "Content-Type": "application/dicom"
-                }, name="/instances").json()
-
-            # delete the file
-            os.remove(filename)
-
-            # break if status is Success
-            if upload["Status"] == "Success":
-                logger.info(f"Uploaded file {filename} as instance ID {upload['ID']}, "
-                            f"ParentSeries {upload['ParentSeries']}, "
-                            f"ParentStudy {upload['ParentStudy']}, "
-                            f"ParentPatient {upload['ParentPatient']}")
-
-                break
+        if upload["Status"] != "Success":
+            raise Exception(f"Unexpected upload status {upload['Status']} for instance {upload['ID']}")
 
         return upload
 
     @task
     def upload_and_delete_instance(self):
-        upload = self.upload_file()
+        filename = create_dicom_instance(patient_id=str(uuid.uuid4()))
+        upload = self.upload_file(filename)
 
         # delete the instance
         self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
@@ -239,60 +289,48 @@ class WriteTest(HttpUser):
 
     @task
     def upload_and_delete_series(self):
-        upload = self.upload_file()
+        filenames = create_dicom_series(patient_id=str(uuid.uuid4()))
+        uploads = []
 
-        # count the number of instances in the series
-        instances = self.client.get(f"/series/{upload['ParentSeries']}/instances",
-                                    name="/series/{series_id}/instances").json()
+        for filename in filenames:
+            uploads.append(self.upload_file(filename))
 
-        logger.info(f"Found {len(instances)} instance(s) in series {upload['ParentSeries']}")
+        # get the first upload
+        upload = uploads[0]
 
-        if len(instances) == 1:
-            # delete the series
-            self.client.delete(f"/series/{upload['ParentSeries']}", name="/series/{series_id}")
-            logger.info(f"Deleted series {upload['ParentSeries']}")
-        else:
-            # delete the instance
-            self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
-            logger.info(f"Deleted instance {upload['ID']}")
+        # delete the series
+        self.client.delete(f"/series/{upload['ParentSeries']}", name="/series/{series_id}")
+        logger.info(f"Deleted series {upload['ParentSeries']}")
 
     @task
     def upload_and_delete_study(self):
-        upload = self.upload_file()
+        filenames = create_dicom_study(patient_id=str(uuid.uuid4()))
+        uploads = []
 
-        # count the number of instances in the study
-        instances = self.client.get(f"/studies/{upload['ParentStudy']}/instances",
-                                    name="/studies/{study_id}/instances").json()
+        for filename in filenames:
+            uploads.append(self.upload_file(filename))
 
-        logger.info(f"Found {len(instances)} instance(s) in study {upload['ParentStudy']}")
+        # get the first upload
+        upload = uploads[0]
 
-        if len(instances) == 1:
-            # delete the study
-            self.client.delete(f"/studies/{upload['ParentStudy']}", name="/studies/{study_id}")
-            logger.info(f"Deleted study {upload['ParentStudy']}")
-        else:
-            # delete the instance
-            self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
-            logger.info(f"Deleted instance {upload['ID']}")
+        # delete the study
+        self.client.delete(f"/studies/{upload['ParentStudy']}", name="/studies/{study_id}")
+        logger.info(f"Deleted study {upload['ParentStudy']}")
 
     @task
     def upload_and_delete_patient(self):
-        upload = self.upload_file()
+        filenames = create_dicom_patient(patient_id=str(uuid.uuid4()))
+        uploads = []
 
-        # count the number of instances in the patient
-        instances = self.client.get(f"/patients/{upload['ParentPatient']}/instances",
-                                    name="/patients/{patient_id}/instances").json()
+        for filename in filenames:
+            uploads.append(self.upload_file(filename))
 
-        logger.info(f"Found {len(instances)} instance(s) in patient {upload['ParentPatient']}")
+        # get the first upload
+        upload = uploads[0]
 
-        if len(instances) == 1:
-            # delete the patient
-            self.client.delete(f"/patients/{upload['ParentPatient']}", name="/patients/{patient_id}")
-            logger.info(f"Deleted patient {upload['ParentPatient']}")
-        else:
-            # delete the instance
-            self.client.delete(f"/instances/{upload['ID']}", name="/instances/{instance_id}")
-            logger.info(f"Deleted instance {upload['ID']}")
+        # delete the patient
+        self.client.delete(f"/patients/{upload['ParentPatient']}", name="/patients/{patient_id}")
+        logger.info(f"Deleted patient {upload['ParentPatient']}")
 
 
 @events.test_start.add_listener
