@@ -14,6 +14,10 @@ Refer to [Locust Documentation](http://docs.locust.io/en/latest/installation.htm
 
 ## Usage
 
+> **Warning**: The load test will create a lot of DICOM instances in the Orthanc server, and also perform delete operations on created instances.
+>
+> It is recommended to use a separate Orthanc server for testing and not the production one.
+
 ```bash
 $ # bring up the local services in docker-compose.yml
 $ docker compose up -d
