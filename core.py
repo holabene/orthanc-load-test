@@ -45,7 +45,7 @@ class CoreTest(HttpUser):
                 logger.info(f"Anonymizing study {study_id}")
                 res = self.client.post(f"/studies/{study_id}/anonymize", json={
                     "Asynchronous": False
-                }, name=f"/studies/{study_id}/anonymize ({file})").json()
+                }, name=f"/studies/{study_id}/anonymize ({file})", timeout=25 * 60).json()
 
                 # log the response
                 logger.info(f"Anonymized study {study_id}: {res}")
