@@ -5,6 +5,7 @@ import logging
 import zipfile
 
 logger = logging.getLogger(__name__)
+study_ids = {}
 
 
 class CoreTest(HttpUser):
@@ -34,5 +35,19 @@ class CoreTest(HttpUser):
                         # log the response
                         logger.info(f"Uploaded file {extracted_file}: {res}")
 
+                        if "ParentStudy" in res.keys() and file not in study_ids.keys():
+                            # add the study ID to the list
+                            study_ids[file] = res["ParentStudy"]
 
 
+@events.test_start.add_listener
+def on_test_start(**kwargs):
+    logger.info("Starting test")
+
+
+@events.test_stop.add_listener
+def on_test_stop(**kwargs):
+    logger.info("Stopping test")
+
+    # print study_ids
+    logger.info(f"Study IDs: {study_ids}")
