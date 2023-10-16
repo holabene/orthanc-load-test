@@ -50,6 +50,17 @@ class CoreTest(HttpUser):
                 # log the response
                 logger.info(f"Anonymized study {study_id}: {res}")
 
+                # result study ID
+                anon_study_id = res["ID"]
+
+                # delete the original study
+                logger.info(f"Deleting study {study_id}")
+                self.client.delete(f"/studies/{study_id}").json()
+
+                # delete the anonymized study
+                logger.info(f"Deleting study {anon_study_id}")
+                self.client.delete(f"/studies/{anon_study_id}").json()
+
 
 @events.test_start.add_listener
 def on_test_start(**kwargs):
