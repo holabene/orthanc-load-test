@@ -22,6 +22,10 @@ class CoreTest(HttpUser):
             with zipfile.ZipFile(f".data/test_data/{file}", 'r') as zip_file:
                 # Iterate over the extracted files
                 for extracted_file in zip_file.namelist():
+                    # skip if dir is __MACOSX or .DS_Store or is dir
+                    if "__MACOSX" in extracted_file or ".DS_Store" in extracted_file or extracted_file.endswith("/"):
+                        continue
+
                     # Read the file
                     with zip_file.open(extracted_file, 'r') as dicom_file:
                         # log the file name
