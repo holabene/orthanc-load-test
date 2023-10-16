@@ -30,7 +30,7 @@ class CoreTest(HttpUser):
                         # Post the file to /instances
                         res = self.client.post("/instances", data=dicom_file, headers={
                             "Content-Type": "application/dicom"
-                        }).json()
+                        }, name=f"/instances ({file})").json()
 
                         # log the response
                         logger.info(f"Uploaded file {extracted_file}: {res}")
@@ -38,6 +38,17 @@ class CoreTest(HttpUser):
                         if "ParentStudy" in res.keys() and file not in study_ids.keys():
                             # add the study ID to the list
                             study_ids[file] = res["ParentStudy"]
+
+                study_id = study_ids[file]
+
+                # anonymize the study
+                logger.info(f"Anonymizing study {study_id}")
+                res = self.client.post(f"/studies/{study_id}/anonymize", json={
+                    "Asynchronous": False
+                }, name=f"/studies/{study_id}/anonymize ({file})").json()
+
+                # log the response
+                logger.info(f"Anonymized study {study_id}: {res}")
 
 
 @events.test_start.add_listener
